@@ -1,0 +1,126 @@
+---
+title: "Mean Number of Respondents per PSU"
+author: "Mārtiņš Liberts"
+date: today
+format: html
+server: shiny
+---
+
+## Effect of Sample Clustering
+
+The the effect of sample clustering ($\text{deff}_c$) is calculated as
+
+$$\text{deff}_c = 1 + \left( \bar{b} - 1 \right) \rho$$
+
+where:
+
+- $\bar{b}$ is the mean number of interviews carried out per primary sampling unit (PSU);
+- $\rho$ is a measure of the relative homogeneity of a survey measure within the PSU.
+
+In practice $\bar{b}$ is calculated as the mean number of respondents per PSU where only PSUs with at least one respondent are considered:
+
+$$\bar{b} = \frac{n_R}{m_{\text{PSU}|R}}$$
+
+where:
+
+- $n_R$ is the total number of respondents;
+- $m_{\text{PSU}|R}$ is a number of PSUs with at least one respondent.
+
+
+## Predicting Mean Number of Respondents per PSU
+
+For prediciting the mean number of respondents per PSU we should know:
+
+- $m_\text{PSU}$: number of sampled PSUs,
+- $B$: number of sampled units per PSU,
+- $\text{RR}$: predicted response rate,
+- $\text{RI}$: predicted ineligibility rate.
+
+Denote probability to respond as $p = \text{RR} \left(1 - \text{RI} \right)$.
+
+Predicition of the total number of respondents is
+
+$$\hat{n}_R = B \cdot m_\text{PSU} \cdot p $$
+
+Prediction of number of PSUs with at least one respondent is
+
+$$\hat{m}_{\text{PSU}|R} = m_\text{PSU} \left( 1 - (1 - p) ^ B \right)$$
+Prediction of mean number of respondents per PSU with at least one respondent can be calculated as
+
+$$\bar{b}_{\text{prop}} = \hat{\bar{b}} = \frac{\hat{n}_R}{\hat{m}_{\text{PSU}|R}} =
+\frac{B \cdot p}{1 - (1 - p) ^ B}$$
+
+Originaly mean number of respondents per PSU was predicted as $\bar{b}_{\text{orig}} = B \cdot p$.
+
+See the interactive plot for $\bar{b}$ predictions with the original and proposed formula.
+
+
+```{r}
+#| panel: sidebar
+shiny::numericInput(
+   inputId = "RR",
+   label = "Response rate",
+   value = 0.700,
+   min = 0,
+   max = 1,
+   step = 0.01
+)
+shiny::numericInput(
+   inputId = "RI",
+   label = "Ineligibility rate",
+   value = 0.050,
+   min = 0,
+   max = 1,
+   step = 0.01
+)
+shiny::numericInput(
+   inputId = "max_B",
+   label = "Maximum B",
+   value = 10,
+   min = 1,
+   step = 1
+)
+```
+
+```{r}
+#| panel: fill
+shiny::plotOutput("b_plot")
+```
+
+```{r}
+#| context: server
+
+library(data.table)
+library(ggplot2)
+
+output$b_plot <- shiny::renderPlot({
+   
+   p <- input$RR * (1 - input$RI)
+   
+   dat <- data.table(B = 1:input$max_B)
+   dat[, b_orig := B * p]
+   dat[, b_prop := B * p / (1 - (1 - p) ^ B)]
+   
+   dat_melt <- melt.data.table(
+      data = dat,
+      id.vars = "B",
+      value.name = "b"
+   )
+   
+   ggplot(data = dat_melt,
+          mapping = aes(x = B, y = b, colour = variable, group = variable)) +
+      geom_hline(yintercept = 1, colour = "red", linetype  = "dotted") +
+      geom_point() +
+      geom_line() +
+      scale_x_continuous(breaks = dat$B) +
+      scale_y_continuous(breaks = dat$B) +
+      scale_color_brewer(palette = "Set1") +
+      theme_bw() +
+      theme(legend.position = "top")
+   
+})
+```
+
+Good property for the $\bar{b}_{\text{prop}}$ is that it is never less then 1. For example, if $B = 1$, $\bar{b}_{\text{prop}}$ is also 1.
+
+You can see in a graph that $\bar{b}_{\text{prop}}$ is larger than the current $\bar{b}_{\text{orig}}$ for small $B$ values, but gradualy they both converge when $B$ increases. So, this formula can be used for all $B$ values.
