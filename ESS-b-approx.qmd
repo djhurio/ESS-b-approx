@@ -8,7 +8,7 @@ server: shiny
 
 ## Effect of Sample Clustering
 
-The the effect of sample clustering ($\text{deff}_c$) is calculated as
+The effect of sample clustering ($\text{deff}_c$) is calculated as
 
 $$\text{deff}_c = 1 + \left( \bar{b} - 1 \right) \rho$$
 
